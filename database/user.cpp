@@ -22,10 +22,10 @@ namespace database
     {
         Poco::JSON::Object::Ptr root = new Poco::JSON::Object();
 
-        root->set("login", _login);
-        root->set("first_name", _first_name);
-        root->set("last_name", _last_name);
-        root->set("age", _age);
+        root->set("login", login);
+        root->set("first_name", first_name);
+        root->set("last_name", last_name);
+        root->set("age", age);
 
         return root;
     }
@@ -37,10 +37,10 @@ namespace database
         Poco::Dynamic::Var result = parser.parse(str);
         Poco::JSON::Object::Ptr object = result.extract<Poco::JSON::Object::Ptr>();
 
-        user._login = object->getValue<std::string>("login");
-        user._first_name = object->getValue<std::string>("first_name");
-        user._last_name = object->getValue<std::string>("last_name");
-        user._age = object->getValue<int>("age");
+        user.login = object->getValue<std::string>("login");
+        user.first_name = object->getValue<std::string>("first_name");
+        user.last_name = object->getValue<std::string>("last_name");
+        user.age = object->getValue<int>("age");
 
         return user;
     }
@@ -88,10 +88,10 @@ namespace database
             Poco::Data::Statement select(session);
             User a;
             select << "SELECT login, first_name, last_name, age FROM users WHERE login=?",
-                into(a._login),
-                into(a._first_name),
-                into(a._last_name),
-                into(a._age),
+                into(a.login),
+                into(a.first_name),
+                into(a.last_name),
+                into(a.age),
                 use(login),
                 range(0, 1); //  iterate over result set one row at a time
 
@@ -116,7 +116,7 @@ namespace database
         }
     }
 
-    std::vector<User> User::search(std::string first_name, std::string last_name)
+    std::vector<User> User::search(std::optional<std::string> first_name, std::optional<std::string> last_name)
     {
         try
         {
@@ -124,21 +124,22 @@ namespace database
             Statement select(session);
             std::vector<User> result;
             User a;
-            first_name += "%";
-            last_name += "%";
+            std::string first_name_pattern = "%" + first_name.value_or("") + "%";
+            std::string last_name_pattern = "%" + last_name.value_or("") + "%";
             select << "SELECT login, first_name, last_name, age FROM users WHERE first_name LIKE ? AND last_name LIKE ?",
-                into(a._login),
-                into(a._first_name),
-                into(a._last_name),
-                into(a._age),
-                use(first_name),
-                use(last_name),
+                into(a.login),
+                into(a.first_name),
+                into(a.last_name),
+                into(a.age),
+                use(first_name_pattern),
+                use(last_name_pattern),
                 range(0, 1); //  iterate over result set one row at a time
 
             while (!select.done())
             {
-                select.execute();
-                result.push_back(a);
+                if (select.execute()) {
+                    result.push_back(a);
+                }
             }
             return result;
         }
@@ -166,10 +167,10 @@ namespace database
             Poco::Data::Statement insert(session);
 
             insert << "INSERT INTO users (login, first_name, last_name, age) VALUES(?, ?, ?, ?)",
-                use(_login),
-                use(_first_name),
-                use(_last_name),
-                use(_age);
+                use(login),
+                use(first_name),
+                use(last_name),
+                use(age);
 
             insert.execute();
         }

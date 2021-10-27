@@ -52,7 +52,6 @@ static bool checkShouldHandle(const std::string& uri, const std::string& handler
     return startsWith(uri, handler_name) && (uri == handler_name || uri[handler_name.length()] == '?');
 }
 
-
 class HTTPRequestFactory: public HTTPRequestHandlerFactory
 {
 public:
