@@ -1,3 +1,6 @@
+sudo mysql -e '
+create database if not exists stud;
+use stud;
 create user if not exists "stud" identified by "stud";
 grant all on stud.* to "stud";
 CREATE TABLE IF NOT EXISTS `Person`
@@ -8,3 +11,4 @@ CREATE TABLE IF NOT EXISTS `Person`
     `age` INTEGER NOT NULL,PRIMARY KEY (`login`),
     INDEX `login` (`login`)
 );
+'
