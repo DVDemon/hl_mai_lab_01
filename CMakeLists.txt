@@ -10,11 +10,25 @@ find_package(Threads)
 find_package(ZLIB)
 find_package(Poco REQUIRED COMPONENTS Foundation Util Net XML JSON Crypto NetSSL)
 
+find_package(Java 1.8 REQUIRED)
+find_package(Java)
+find_package(JNI REQUIRED)
+
+
+find_package(JNI)
+
+if (JNI_FOUND)
+    message (STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
+    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
+    message (STATUS "JAVA_HOME=$ENV{JAVA_HOME}")
+    message (STATUS "IGNITE_HOME=$ENV{IGNITE_HOME}")
+endif()
 
 if(NOT ${Poco_FOUND})
     message(FATAL_ERROR "Poco C++ Libraries not found.")
 endif()
 
+include_directories(SYSTEM ${IGNITE_INCLUDE_DIR} ${JNI_INCLUDE_DIRS})
 include_directories(${Poco_INCLUDE_DIRS})
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories("/usr/include/mysql")
@@ -22,23 +36,29 @@ include_directories("/usr/local/include/mysql")
 include_directories(${Boost_INCLUDE_DIR})
 link_directories("/usr/local/lib")
 
-add_executable(${EXAMPLE_BINARY} main.cpp 
-                                 config/config.cpp 
-                                 database/database.cpp
-                                 database/person.cpp)
+add_executable(${EXAMPLE_BINARY} main.cpp
+        config/config.cpp
+        database/database.cpp
+        database/cache.cpp
+        database/person.cpp)
 
 
 target_include_directories(${EXAMPLE_BINARY} PRIVATE "${CMAKE_BINARY_DIR}")
 target_compile_options(${EXAMPLE_BINARY} PRIVATE -Wall -Wextra -pedantic -Werror )
 
 
-target_link_libraries(${EXAMPLE_BINARY} PRIVATE 
-                             ${CMAKE_THREAD_LIBS_INIT} 
-                             ${Poco_LIBRARIES}
-                             "PocoData"
-                             "PocoDataMySQL"
-                             "mysqlclient"
-                             ZLIB::ZLIB)
+target_link_libraries(${EXAMPLE_BINARY} PRIVATE
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${Poco_LIBRARIES}
+        "PocoData"
+        "PocoDataMySQL"
+        "mysqlclient"
+        "ignite-binary"
+        "ignite"
+        "ignite-common"
+        ${IGNITE_JNI_LIB}
+#        "ignite-thin-client"
+        ZLIB::ZLIB)
 
 
 set_target_properties(${EXAMPLE_BINARY} PROPERTIES LINKER_LANGUAGE CXX)

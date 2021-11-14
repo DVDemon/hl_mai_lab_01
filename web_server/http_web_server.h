@@ -39,7 +39,7 @@ using Poco::Util::ServerApplication;
 
 #include "http_request_factory.h"
 #include "../config/config.h"
-
+#include "../database/person.h"
 
 
 class HTTPWebServer : public Poco::Util::ServerApplication
@@ -68,46 +68,52 @@ protected:
         ServerApplication::defineOptions(options);
 
         options.addOption(
-            Option("help", "h", "display argument help information")
-                .required(false)
-                .repeatable(false)
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleHelp)));
+                Option("help", "h", "display argument help information")
+                        .required(false)
+                        .repeatable(false)
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleHelp)));
         options.addOption(
-            Option("host", "h", "set ip address for dtabase")
-                .required(false)
-                .repeatable(false)
-                .argument("value")
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleHost)));
+                Option("host", "h", "set ip address for dtabase")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleHost)));
         options.addOption(
-            Option("port", "po", "set mysql port")
-                .required(false)
-                .repeatable(false)
-                .argument("value")
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handlePort)));
+                Option("port", "po", "set mysql port")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handlePort)));
         options.addOption(
-            Option("login", "lg", "set mysql login")
-                .required(false)
-                .repeatable(false)
-                .argument("value")
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleLogin)));
+                Option("login", "lg", "set mysql login")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleLogin)));
         options.addOption(
-            Option("password", "pw", "set mysql password")
-                .required(false)
-                .repeatable(false)
-                .argument("value")
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handlePassword)));
+                Option("password", "pw", "set mysql password")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handlePassword)));
         options.addOption(
-            Option("database", "db", "set mysql database")
-                .required(false)
-                .repeatable(false)
-                .argument("value")
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleDatabase)));
+                Option("database", "db", "set mysql database")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleDatabase)));
         options.addOption(
-            Option("init_db", "it", "create database tables")
-                .required(false)
-                .repeatable(false)
-                .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleInitDB)));
-        
+                Option("init_db", "it", "create database tables")
+                        .required(false)
+                        .repeatable(false)
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleInitDB)));
+        options.addOption(
+                Option("cache_servers", "cs", "set ignite cache servers")
+                        .required(false)
+                        .repeatable(false)
+                        .argument("value")
+                        .callback(OptionCallback<HTTPWebServer>(this, &HTTPWebServer::handleCacheServers)));
+
     }
 
     void handleInitDB([[maybe_unused]] const std::string &name,
@@ -129,12 +135,12 @@ protected:
         Config::get().password() = value;
     }
 
-     void handleDatabase([[maybe_unused]] const std::string &name,
-                         [[maybe_unused]] const std::string &value)
+    void handleDatabase([[maybe_unused]] const std::string &name,
+                        [[maybe_unused]] const std::string &value)
     {
         std::cout << "database:" << value << std::endl;
         Config::get().database() = value;
-    }   
+    }
     void handlePort([[maybe_unused]] const std::string &name,
                     [[maybe_unused]] const std::string &value)
     {
@@ -143,13 +149,18 @@ protected:
     }
 
     void handleHost([[maybe_unused]] const std::string &name,
-                      [[maybe_unused]] const std::string &value)
+                    [[maybe_unused]] const std::string &value)
     {
         std::cout << "host:" << value << std::endl;
         Config::get().host() = value;
     }
 
-
+    void handleCacheServers([[maybe_unused]] const std::string &name,
+                            [[maybe_unused]] const std::string &value)
+    {
+        std::cout << "cache servers:" << value << std::endl;
+        Config::get().cache_servers() = value;
+    }
 
     void handleHelp([[maybe_unused]] const std::string &name,
                     [[maybe_unused]] const std::string &value)
@@ -158,7 +169,7 @@ protected:
         helpFormatter.setCommand(commandName());
         helpFormatter.setUsage("OPTIONS");
         helpFormatter.setHeader(
-            "A web server that serves the current date and time.");
+                "A web server that serves the current date and time.");
         helpFormatter.format(std::cout);
         stopOptionsProcessing();
         _helpRequested = true;
@@ -169,12 +180,13 @@ protected:
         if (!_helpRequested)
         {
             unsigned short port = (unsigned short)
-                                      config()
-                                          .getInt("HTTPWebServer.port", 80);
+                    config()
+                            .getInt("HTTPWebServer.port", 80);
             std::string format(
-                config().getString("HTTPWebServer.format",
-                                   DateTimeFormat::SORTABLE_FORMAT));
-            
+                    config().getString("HTTPWebServer.format",
+                                       DateTimeFormat::SORTABLE_FORMAT));
+            database::Person::warm_up_cache();
+
             ServerSocket svs(Poco::Net::SocketAddress("0.0.0.0", port));
             HTTPServer srv(new HTTPRequestFactory(format),
                            svs, new HTTPServerParams);

@@ -1,5 +1,6 @@
 #include "person.h"
 #include "database.h"
+#include "cache.h"
 #include "../config/config.h"
 
 #include <Poco/Data/MySQL/Connector.h>
@@ -96,6 +97,24 @@ namespace database
         return Person;
     }
 
+    void Person::warm_up_cache()
+    {
+        std::cout << "warming up persons cache ..." << std::endl;
+        auto array = read_all();
+
+        long count = 0;
+
+
+        for (auto &a : array)
+        {
+            std::cout << "read " << count<< std::endl;
+            a.save_to_cache();
+            ++count;
+//            break;
+        }
+        std::cout << "done: " << count << std::endl;
+    }
+
     Person Person::read_by_login(std::string login)
     {
         try
@@ -130,6 +149,33 @@ namespace database
         }
     }
 
+    void Person::save_to_cache()
+    {
+        std::stringstream ss;
+        Poco::JSON::Stringifier::stringify(toJSON(), ss);
+        std::string message = ss.str();
+        std::cout << "read " << message << std::endl;
+        database::Cache::get().put(_login, message);
+        std::cout << "save ended" << std::endl;
+    }
+
+    Person Person::read_by_login_from_cache(std::string login)
+    {
+        try
+        {
+            std::string result;
+            if (database::Cache::get().get(login, result))
+                return fromJSON(result);
+            else
+                throw std::logic_error("key not found in the cache");
+        }
+        catch (std::exception& err)
+        {
+            std::cout << "error:" << err.what() << std::endl;
+            throw;
+        }
+    }
+
     std::vector<Person> Person::read_all()
     {
         try
@@ -143,7 +189,7 @@ namespace database
                 into(a._first_name),
                 into(a._last_name),
                 into(a._age),
-                range(0, 1); //  iterate over result set one row at a time
+                range(1, 1); //  iterate over result set one row at a time
 
             while (!select.done())
             {

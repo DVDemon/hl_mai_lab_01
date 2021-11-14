@@ -55,20 +55,38 @@ public:
     {
     }
 
-    void getByLogin(const HTMLForm& form, std::ostream &ostr) {
+    void getByLogin(const HTMLForm& form, bool no_cache, std::ostream &ostr) {
         const std::string login = form.get("login");
+        if (!no_cache) {
+            try
+            {
+                database::Person result = database::Person::read_by_login_from_cache(login);
+                Poco::JSON::Stringifier::stringify(result.toJSON(), ostr);
+                return;
+            }
+            catch (...)
+            {
+                std::cout << "cache missed for login:" << login << std::endl;
+            }
+        }
         database::Person result = database::Person::read_by_login(login);
+
+        if (!no_cache) {
+            result.save_to_cache();
+        }
         Poco::JSON::Stringifier::stringify(result.toJSON(), ostr);
     }
 
     void getByName(const HTMLForm& form, std::ostream &ostr) {
         std::string  fn = form.get("first_name", "");
         std::string  ln = form.get("last_name", "");
+
         auto results = database::Person::search(fn,ln);
-        if (results.size() == 0) {
+        if (results.empty()) {
             ostr << "{ \"result\": false , \"reason\": \"not found\" }";
             return;
         }
+
         Poco::JSON::Array arr;
         for (auto s : results)
             arr.add(s.toJSON());
@@ -92,6 +110,7 @@ public:
                                 );
 
                 person.save_to_mysql();
+                person.save_to_cache();
                 ostr << "{ \"result\": true }";
 
             } else {
@@ -110,11 +129,15 @@ public:
         response.setContentType("application/json");
         std::ostream &ostr = response.send();
 
+
         if (request.getMethod() == "GET") { // Searching smth
             try {
                 HTMLForm form(request, request.stream());
+                bool no_cache = false;
+                if (form.has("no_cache"))
+                    no_cache = true;
                 if (form.has("login")) {
-                    getByLogin(form, ostr);
+                    getByLogin(form, no_cache, ostr);
                     return;
                 } else if ((form.has("first_name")) || (form.has("last_name"))) {
                     getByName(form, ostr);
